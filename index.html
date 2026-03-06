@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>完整工業設備監控 Dashboard</title>
+  <style>
+    :root {
+      --bg: #08101b;
+      --panel: #0f1726;
+      --panel-2: #131f31;
+      --line: rgba(148, 163, 184, 0.18);
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --amber: #fbbf24;
+      --amber-soft: #fde68a;
+      --green: #34d399;
+      --yellow: #facc15;
+      --red: #ef4444;
+      --blue: #60a5fa;
+      --cyan: #22d3ee;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+      color: var(--text);
+      background:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+        radial-gradient(circle at top, #334155 0%, #162030 24%, #09111d 56%, #020617 100%);
+      background-size: 28px 28px, 28px 28px, cover;
+      padding: 18px;
+    }
+
+    .dashboard {
+      max-width: 1540px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1.2fr 0.9fr;
+      grid-template-areas:
+        "top top"
+        "left right"
+        "bottom bottom";
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(19,31,49,0.96), rgba(9,16,29,0.98));
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent 34%, transparent 72%, rgba(251,191,36,0.05));
+      pointer-events: none;
+    }
+
+    .topbar {
+      grid-area: top;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: 1.1fr auto auto auto;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .section-left { grid-area: left; display: grid; gap: 16px; }
+    .section-right { grid-area: right; display: grid; gap: 16px; }
+    .section-bottom { grid-area: bottom; display: grid; gap: 16px; }
+
+    .headline .eyebrow,
+    .label,
+    .small-title {
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: rgba(252, 211, 77, 0.72);
+    }
+
+    .headline h1 {
+      margin: 8px 0 6px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 760px;
+    }
+
+    .status-card,
+    .mode-card,
+    .kpi-card,
+    .digital-box,
+    .alarm-box,
+    .ctrl-box,
+    .gauge-card,
+    .list-box,
+    .chart-box,
+    .clock-box,
+    .motor-box,
+    .footer-box {
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(2,6,23,0.34);
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-card,
+    .mode-card,
+    .kpi-card { padding: 14px 16px; min-width: 150px; }
+
+    .status-value,
+    .mode-value,
+    .kpi-value {
+      margin-top: 8px;
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .status-value { color: var(--green); }
+    .mode-value { color: var(--amber); }
+    .kpi-value { color: var(--cyan); }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px;
+    }
+
+    .clock-box { padding: 20px; }
+    .clock-header,
+    .sub-row,
+    .alarm-header,
+    .motor-header,
+    .chart-header,
+    .list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .clock-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 0 6px;
+    }
+
+    .clock {
+      position: relative;
+      width: min(76vw, 520px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #d7dce3, #96a0ad 42%, #5e6876 60%, #c4ccd5 100%);
+      box-shadow: 0 24px 70px rgba(0,0,0,0.45);
+    }
+
+    .bezel-outer, .bezel-inner, .dial-ring, .dial-dashed, .top-badge, .tick, .number, .hand, .pin {
+      position: absolute;
+    }
+
+    .bezel-outer {
+      inset: 14px;
+      border-radius: 50%;
+      border: 12px solid rgba(36, 46, 58, 0.92);
+      box-shadow: inset 0 8px 18px rgba(255,255,255,0.12), inset 0 -10px 22px rgba(0,0,0,0.45);
+    }
+
+    .bezel-inner {
+      inset: 28px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #475569 0%, #1e293b 28%, #0f172a 58%, #020617 100%);
+      border: 1px solid rgba(148,163,184,0.35);
+    }
+
+    .dial-ring { inset: 44px; border-radius: 50%; border: 1px solid rgba(251,191,36,0.15); }
+    .dial-dashed { inset: 86px; border-radius: 50%; border: 1px dashed rgba(251,191,36,0.12); }
+
+    .top-badge {
+      left: 50%; top: 18%; transform: translateX(-50%);
+      padding: 10px 16px; border-radius: 12px; text-align: center;
+      border: 1px solid rgba(251,191,36,0.22); background: rgba(0,0,0,0.3);
+    }
+
+    .top-badge .value { margin-top: 4px; font-size: 14px; font-weight: 800; color: #fef3c7; }
+
+    .tick { left: 50%; top: 50%; transform-origin: center center; }
+    .tick::after {
+      content: "";
+      display: block;
+      border-radius: 999px;
+      transform: translateY(-200px);
+      box-shadow: 0 0 10px rgba(0,0,0,0.25);
+    }
+    .tick.minor::after { width: 2px; height: 12px; background: rgba(148,163,184,0.94); }
+    .tick.major::after { width: 6px; height: 28px; background: linear-gradient(180deg, var(--amber-soft), var(--amber)); box-shadow: 0 0 14px rgba(251,191,36,0.2); }
+
+    .number {
+      left: 50%; top: 50%; transform: translate(-50%, -50%);
+      color: #fde68a; font-size: clamp(22px, 2.2vw, 33px); font-weight: 900;
+      text-shadow: 0 0 14px rgba(251,191,36,0.18);
+    }
+
+    .hand {
+      left: 50%; top: 50%; transform-origin: bottom center; border-radius: 999px;
+    }
+    .hour-hand { width: 12px; height: 140px; background: linear-gradient(180deg, #fde68a, #b45309); box-shadow: 0 0 18px rgba(251,191,36,0.22); }
+    .minute-hand { width: 8px; height: 190px; background: linear-gradient(180deg, #f8fafc, #94a3b8); }
+    .second-hand { width: 4px; height: 212px; background: linear-gradient(180deg, #f87171, #991b1b); }
+    .pin {
+      left: 50%; top: 50%; width: 34px; height: 34px; transform: translate(-50%, -50%);
+      border-radius: 50%; background: linear-gradient(145deg, #fde68a, #f59e0b 55%, #92400e); border: 4px solid #111827;
+      box-shadow: 0 0 18px rgba(251,191,36,0.24);
+    }
+
+    .digital-box { padding: 18px; }
+    .digital-time {
+      margin-top: 10px;
+      font-family: Consolas, Menlo, monospace;
+      font-size: clamp(32px, 4vw, 56px);
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      color: var(--amber);
+      text-shadow: 0 0 18px rgba(251,191,36,0.24);
+    }
+    .date-text { margin-top: 10px; color: var(--muted); }
+
+    .ctrl-box { padding: 16px; display: grid; gap: 12px; }
+    .control-row {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      padding: 12px 14px; border-radius: 14px; background: rgba(15,23,42,0.7); border: 1px solid rgba(148,163,184,0.16);
+    }
+    .control-title { font-size: 14px; font-weight: 800; }
+    .control-desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    .toggle {
+      appearance: none; width: 58px; height: 32px; border-radius: 999px; background: #334155; position: relative; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .toggle::after {
+      content: ""; position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0; top: 3px; left: 4px;
+      transition: 0.22s ease;
+    }
+    .toggle:checked { background: rgba(251,191,36,0.38); box-shadow: 0 0 12px rgba(251,191,36,0.12); }
+    .toggle:checked::after { left: 28px; background: var(--amber-soft); }
+
+    .mode-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .mode-btn, .action-btn {
+      border: 1px solid rgba(255,255,255,0.08); background: #1e293b; color: var(--text); cursor: pointer;
+      border-radius: 12px; padding: 12px 10px; font-weight: 800;
+    }
+    .mode-btn.active { background: rgba(251,191,36,0.18); color: var(--amber-soft); border-color: rgba(251,191,36,0.24); }
+    .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ack-btn { background: rgba(250,204,21,0.18); color: #fde68a; }
+    .reset-btn { background: rgba(96,165,250,0.16); color: #bfdbfe; }
+
+    .alarm-box { padding: 18px; border-color: rgba(239,68,68,0.24); }
+    .alarm-lights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+    .light-card {
+      padding: 12px; border-radius: 14px; background: rgba(2,6,23,0.48); border: 1px solid rgba(148,163,184,0.12); text-align: center;
+    }
+    .pilot {
+      width: 52px; height: 52px; border-radius: 50%; margin: 8px auto 10px;
+      border: 3px solid rgba(255,255,255,0.08);
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.48), rgba(255,255,255,0.05) 34%, rgba(0,0,0,0.55) 100%);
+      box-shadow: inset 0 -10px 16px rgba(0,0,0,0.35), inset 0 8px 12px rgba(255,255,255,0.06);
+    }
+    .pilot.red.active { background: radial-gradient(circle at 30% 30%, #fecaca, #ef4444 42%, #7f1d1d 100%); box-shadow: 0 0 12px rgba(239,68,68,0.55), 0 0 26px rgba(239,68,68,0.35); }
+    .pilot.yellow.active { background: radial-gradient(circle at 30% 30%, #fef9c3, #facc15 42%, #854d0e 100%); box-shadow: 0 0 12px rgba(250,204,21,0.55), 0 0 26px rgba(250,204,21,0.35); }
+    .pilot.green.active { background: radial-gradient(circle at 30% 30%, #bbf7d0, #34d399 42%, #065f46 100%); box-shadow: 0 0 12px rgba(52,211,153,0.55), 0 0 26px rgba(52,211,153,0.35); }
+    .light-state { font-size: 13px; font-weight: 900; }
+    .light-sub { margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .alarm-message { font-size: 20px; font-weight: 900; }
+    .alarm-badge {
+      padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); font-size: 12px; font-weight: 800;
+    }
+    .alarm-badge.normal { color: var(--green); background: rgba(52,211,153,0.08); }
+    .alarm-badge.warn { color: var(--yellow); background: rgba(250,204,21,0.08); }
+    .alarm-badge.critical { color: #fecaca; background: rgba(239,68,68,0.12); }
+    .alarm-detail { margin-top: 8px; color: var(--muted); line-height: 1.65; }
+    .buzzer { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); }
+    .buzzer.active { color: var(--red); animation: blink 0.8s infinite; }
+    @keyframes blink { 50% { opacity: 0.25; } }
+
+    .gauge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .gauge-card { padding: 14px 16px; }
+    .mini-gauge { display: flex; justify-content: center; align-items: center; padding-top: 6px; }
+    .mini-dial {
+      position: relative; width: 118px; height: 118px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #334155 0%, #111827 55%, #020617 100%);
+      border: 1px solid rgba(148,163,184,0.24); overflow: hidden;
+      box-shadow: inset 0 8px 18px rgba(255,255,255,0.06), inset 0 -10px 20px rgba(0,0,0,0.4);
+    }
+    .mini-arc { position: absolute; inset: 10px; border-radius: 50%; border: 7px solid rgba(251,191,36,0.15); clip-path: inset(0 0 50% 0); }
+    .mini-center {
+      position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; border-radius: 50%; transform: translate(-50%, -50%);
+      background: linear-gradient(145deg, #fde68a, #f59e0b 55%, #92400e); border: 2px solid #111827; z-index: 3;
+    }
+    .mini-needle {
+      position: absolute; left: 50%; top: 50%; width: 4px; height: 42px; border-radius: 999px; transform-origin: bottom center;
+      transform: translate(-50%, -100%) rotate(-120deg); z-index: 2;
+    }
+    .temp-needle { background: linear-gradient(180deg, #fca5a5, #dc2626); }
+    .pressure-needle { background: linear-gradient(180deg, #bfdbfe, #2563eb); }
+    .rpm-needle { background: linear-gradient(180deg, #fde68a, #d97706); }
+    .mini-value {
+      position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); font-size: 14px; font-weight: 900; white-space: nowrap;
+    }
+
+    .motor-box, .chart-box, .list-box, .footer-box { padding: 16px; }
+
+    .motor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .motor-card {
+      padding: 14px; border-radius: 14px; background: rgba(2,6,23,0.42); border: 1px solid rgba(148,163,184,0.12);
+    }
+    .motor-value { margin-top: 8px; font-size: 20px; font-weight: 900; }
+    .bar {
+      height: 10px; margin-top: 10px; border-radius: 999px; background: rgba(51,65,85,0.8); overflow: hidden;
+    }
+    .bar > div {
+      height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--cyan));
+    }
+
+    .chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .chart-panel {
+      padding: 12px; border-radius: 14px; background: rgba(2,6,23,0.42); border: 1px solid rgba(148,163,184,0.12);
+    }
+    canvas { width: 100%; height: 160px; display: block; }
+
+    .list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .event-list, .alarm-log {
+      margin: 0; padding: 0; list-style: none; display: grid; gap: 10px;
+    }
+    .event-item, .log-item {
+      padding: 12px; border-radius: 12px; background: rgba(2,6,23,0.42); border: 1px solid rgba(148,163,184,0.12);
+    }
+    .event-title, .log-title { font-weight: 800; }
+    .event-meta, .log-meta { color: var(--muted); margin-top: 4px; font-size: 12px; line-height: 1.5; }
+
+    .footer-box {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .footer-card {
+      padding: 14px; border-radius: 14px; background: rgba(2,6,23,0.42); border: 1px solid rgba(148,163,184,0.12);
+    }
+    .footer-value { margin-top: 8px; font-size: 20px; font-weight: 900; }
+
+    @media (max-width: 1250px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "top"
+          "left"
+          "right"
+          "bottom";
+      }
+      .main-grid, .chart-grid, .list-grid, .motor-grid, .footer-box { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .topbar, .main-grid, .gauge-grid, .chart-grid, .list-grid, .motor-grid, .footer-box, .alarm-lights { grid-template-columns: 1fr; }
+      .clock { width: min(88vw, 420px); }
+      .tick::after { transform: translateY(-160px); }
+      .tick.minor::after { height: 9px; }
+      .tick.major::after { height: 22px; width: 5px; }
+      .hour-hand { height: 100px; width: 10px; }
+      .minute-hand { height: 136px; width: 7px; }
+      .second-hand { height: 150px; width: 3px; }
+      .dial-dashed { inset: 62px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <section class="panel topbar">
+      <div class="headline">
+        <div class="eyebrow">Industrial Monitoring Dashboard</div>
+        <h1>完整工業設備監控 Dashboard</h1>
+        <div class="subtitle">單一 HTML、免安裝。整合即時時鐘、Alarm、蜂鳴器、Ack / Reset、設備模式、趨勢圖、事件清單與設備 KPI。</div>
+      </div>
+      <div class="status-card">
+        <div class="label">System</div>
+        <div class="status-value" id="systemStatus">RUNNING</div>
+      </div>
+      <div class="mode-card">
+        <div class="label">Mode</div>
+        <div class="mode-value" id="modeValue">AUTO</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">OEE</div>
+        <div class="kpi-value" id="oeeValue">92.4%</div>
+      </div>
+    </section>
+
+    <div class="section-left">
+      <div class="main-grid">
+        <section class="panel clock-box">
+          <div class="clock-header">
+            <div>
+              <div class="small-title">Main Time Gauge</div>
+              <div class="subtitle">本地設備時鐘 / 控制室主顯示</div>
+            </div>
+            <div class="alarm-badge normal" id="timeBadge">SYNCED</div>
+          </div>
+          <div class="clock-wrap">
+            <div class="clock" id="clock">
+              <div class="bezel-outer"></div>
+              <div class="bezel-inner"></div>
+              <div class="dial-ring"></div>
+              <div class="dial-dashed"></div>
+              <div class="top-badge">
+                <div class="small-title">Gauge</div>
+                <div class="value">LOCAL TIME</div>
+              </div>
+              <div class="hand hour-hand" id="hourHand"></div>
+              <div class="hand minute-hand" id="minuteHand"></div>
+              <div class="hand second-hand" id="secondHand"></div>
+              <div class="pin"></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-right-stack" style="display:grid; gap:16px;">
+          <section class="panel digital-box">
+            <div class="small-title">Digital Panel</div>
+            <div class="digital-time" id="digitalTime">00:00:00</div>
+            <div class="date-text" id="dateText">----/--/--</div>
+          </section>
+
+          <section class="panel ctrl-box">
+            <div class="small-title">Controls</div>
+            <label class="control-row">
+              <div>
+                <div class="control-title">24 小時制</div>
+                <div class="control-desc">切換時間格式</div>
+              </div>
+              <input class="toggle" id="formatToggle" type="checkbox" checked />
+            </label>
+            <label class="control-row">
+              <div>
+                <div class="control-title">顯示秒針 / 秒數</div>
+                <div class="control-desc">切換時鐘動態</div>
+              </div>
+              <input class="toggle" id="secondToggle" type="checkbox" checked />
+            </label>
+            <div>
+              <div class="small-title" style="margin-bottom:10px;">Operation Mode</div>
+              <div class="mode-buttons">
+                <button class="mode-btn active" data-mode="AUTO">AUTO</button>
+                <button class="mode-btn" data-mode="MANUAL">MANUAL</button>
+                <button class="mode-btn" data-mode="MAINT">MAINT</button>
+              </div>
+            </div>
+            <div>
+              <div class="small-title" style="margin-bottom:10px;">Alarm Actions</div>
+              <div class="action-row">
+                <button class="action-btn ack-btn" id="ackBtn">ACK</button>
+                <button class="action-btn reset-btn" id="resetBtn">RESET</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <section class="panel alarm-box">
+        <div class="alarm-header">
+          <div>
+            <div class="small-title">Alarm Panel</div>
+            <div class="alarm-message" id="alarmMessage">SYSTEM NORMAL</div>
+          </div>
+          <div class="alarm-badge normal" id="alarmBadge">NORMAL</div>
+        </div>
+        <div class="alarm-lights">
+          <div class="light-card">
+            <div class="small-title">Critical</div>
+            <div class="pilot red" id="redLight"></div>
+            <div class="light-state" id="redState">OFF</div>
+            <div class="light-sub">高風險 / 緊急停機</div>
+          </div>
+          <div class="light-card">
+            <div class="small-title">Warning</div>
+            <div class="pilot yellow" id="yellowLight"></div>
+            <div class="light-state" id="yellowState">MONITOR</div>
+            <div class="light-sub">接近限制 / 需關注</div>
+          </div>
+          <div class="light-card">
+            <div class="small-title">Normal</div>
+            <div class="pilot green active" id="greenLight"></div>
+            <div class="light-state" id="greenState">RUN</div>
+            <div class="light-sub">系統正常運行中</div>
+          </div>
+        </div>
+        <div class="alarm-detail" id="alarmDetail">目前所有監測值均在可接受範圍內，設備可持續運轉。</div>
+        <div class="buzzer" id="buzzer"><span style="font-size:20px;">🔔</span><span id="buzzerText">Alarm Buzzer Idle</span></div>
+      </section>
+    </div>
+
+    <div class="section-right">
+      <section class="panel gauge-card">
+        <div class="sub-row">
+          <div>
+            <div class="small-title">Process Gauges</div>
+            <div class="subtitle">Temperature / Pressure / RPM</div>
+          </div>
+          <div class="alarm-badge normal" id="processBadge">STABLE</div>
+        </div>
+        <div class="gauge-grid">
+          <div class="gauge-card">
+            <div class="small-title">Temperature</div>
+            <div class="mini-gauge">
+              <div class="mini-dial">
+                <div class="mini-arc"></div>
+                <div class="mini-center"></div>
+                <div class="mini-needle temp-needle" id="tempNeedle"></div>
+                <div class="mini-value" id="tempValue">72°C</div>
+              </div>
+            </div>
+          </div>
+          <div class="gauge-card">
+            <div class="small-title">Pressure</div>
+            <div class="mini-gauge">
+              <div class="mini-dial">
+                <div class="mini-arc"></div>
+                <div class="mini-center"></div>
+                <div class="mini-needle pressure-needle" id="pressureNeedle"></div>
+                <div class="mini-value" id="pressureValue">5.8 bar</div>
+              </div>
+            </div>
+          </div>
+          <div class="gauge-card">
+            <div class="small-title">RPM</div>
+            <div class="mini-gauge">
+              <div class="mini-dial">
+                <div class="mini-arc"></div>
+                <div class="mini-center"></div>
+                <div class="mini-needle rpm-needle" id="rpmNeedle"></div>
+                <div class="mini-value" id="rpmValue">1450</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel motor-box">
+        <div class="motor-header">
+          <div>
+            <div class="small-title">Equipment KPIs</div>
+            <div class="subtitle">載率、功耗、振動、效率</div>
+          </div>
+          <div class="alarm-badge normal" id="machineBadge">ACTIVE</div>
+        </div>
+        <div class="motor-grid">
+          <div class="motor-card">
+            <div class="small-title">Load</div>
+            <div class="motor-value" id="loadValue">68%</div>
+            <div class="bar"><div id="loadBar"></div></div>
+          </div>
+          <div class="motor-card">
+            <div class="small-title">Power</div>
+            <div class="motor-value" id="powerValue">34.2 kW</div>
+            <div class="bar"><div id="powerBar"></div></div>
+          </div>
+          <div class="motor-card">
+            <div class="small-title">Vibration</div>
+            <div class="motor-value" id="vibrationValue">2.1 mm/s</div>
+            <div class="bar"><div id="vibrationBar"></div></div>
+          </div>
+          <div class="motor-card">
+            <div class="small-title">Efficiency</div>
+            <div class="motor-value" id="effValue">93.8%</div>
+            <div class="bar"><div id="effBar"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="section-bottom">
+      <section class="panel chart-box">
+        <div class="chart-header">
+          <div>
+            <div class="small-title">Trend Charts</div>
+            <div class="subtitle">最近 30 筆資料趨勢</div>
+          </div>
+          <div class="alarm-badge normal" id="trendBadge">LIVE</div>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-panel">
+            <div class="small-title" style="margin-bottom:8px;">Temperature Trend</div>
+            <canvas id="tempChart" width="420" height="160"></canvas>
+          </div>
+          <div class="chart-panel">
+            <div class="small-title" style="margin-bottom:8px;">Pressure Trend</div>
+            <canvas id="pressureChart" width="420" height="160"></canvas>
+          </div>
+          <div class="chart-panel">
+            <div class="small-title" style="margin-bottom:8px;">RPM Trend</div>
+            <canvas id="rpmChart" width="420" height="160"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel list-box">
+        <div class="list-header">
+          <div>
+            <div class="small-title">Events & Alarm Log</div>
+            <div class="subtitle">即時紀錄操作與異常</div>
+          </div>
+          <div class="alarm-badge normal" id="logBadge">REC</div>
+        </div>
+        <div class="list-grid">
+          <div>
+            <div class="small-title" style="margin-bottom:10px;">Recent Events</div>
+            <ul class="event-list" id="eventList"></ul>
+          </div>
+          <div>
+            <div class="small-title" style="margin-bottom:10px;">Alarm Log</div>
+            <ul class="alarm-log" id="alarmLog"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel footer-box">
+        <div class="footer-card">
+          <div class="small-title">Shift</div>
+          <div class="footer-value" id="shiftValue">A</div>
+        </div>
+        <div class="footer-card">
+          <div class="small-title">Batch ID</div>
+          <div class="footer-value" id="batchValue">B-240316</div>
+        </div>
+        <div class="footer-card">
+          <div class="small-title">Operator</div>
+          <div class="footer-value" id="operatorValue">ZHOU</div>
+        </div>
+        <div class="footer-card">
+          <div class="small-title">Line Status</div>
+          <div class="footer-value" id="lineValue" style="color: var(--green);">ONLINE</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const hourHand = document.getElementById('hourHand');
+    const minuteHand = document.getElementById('minuteHand');
+    const secondHand = document.getElementById('secondHand');
+    const digitalTime = document.getElementById('digitalTime');
+    const dateText = document.getElementById('dateText');
+    const formatToggle = document.getElementById('formatToggle');
+    const secondToggle = document.getElementById('secondToggle');
+    const modeValue = document.getElementById('modeValue');
+    const systemStatus = document.getElementById('systemStatus');
+    const oeeValue = document.getElementById('oeeValue');
+    const timeBadge = document.getElementById('timeBadge');
+    const processBadge = document.getElementById('processBadge');
+    const machineBadge = document.getElementById('machineBadge');
+
+    const tempNeedle = document.getElementById('tempNeedle');
+    const pressureNeedle = document.getElementById('pressureNeedle');
+    const rpmNeedle = document.getElementById('rpmNeedle');
+    const tempValue = document.getElementById('tempValue');
+    const pressureValue = document.getElementById('pressureValue');
+    const rpmValue = document.getElementById('rpmValue');
+
+    const loadValue = document.getElementById('loadValue');
+    const powerValue = document.getElementById('powerValue');
+    const vibrationValue = document.getElementById('vibrationValue');
+    const effValue = document.getElementById('effValue');
+    const loadBar = document.getElementById('loadBar');
+    const powerBar = document.getElementById('powerBar');
+    const vibrationBar = document.getElementById('vibrationBar');
+    const effBar = document.getElementById('effBar');
+
+    const redLight = document.getElementById('redLight');
+    const yellowLight = document.getElementById('yellowLight');
+    const greenLight = document.getElementById('greenLight');
+    const redState = document.getElementById('redState');
+    const yellowState = document.getElementById('yellowState');
+    const greenState = document.getElementById('greenState');
+    const alarmMessage = document.getElementById('alarmMessage');
+    const alarmDetail = document.getElementById('alarmDetail');
+    const alarmBadge = document.getElementById('alarmBadge');
+    const buzzer = document.getElementById('buzzer');
+    const buzzerText = document.getElementById('buzzerText');
+    const ackBtn = document.getElementById('ackBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const eventList = document.getElementById('eventList');
+    const alarmLog = document.getElementById('alarmLog');
+
+    const shiftValue = document.getElementById('shiftValue');
+    const batchValue = document.getElementById('batchValue');
+    const operatorValue = document.getElementById('operatorValue');
+    const lineValue = document.getElementById('lineValue');
+
+    const clock = document.getElementById('clock');
+    const modeButtons = [...document.querySelectorAll('.mode-btn')];
+
+    const chartRefs = {
+      temp: document.getElementById('tempChart'),
+      pressure: document.getElementById('pressureChart'),
+      rpm: document.getElementById('rpmChart')
+    };
+
+    const history = {
+      temp: [],
+      pressure: [],
+      rpm: []
+    };
+
+    const state = {
+      mode: 'AUTO',
+      acked: false,
+      alarmLevel: 'normal',
+      lastAlarmKey: '',
+      temp: 72,
+      pressure: 5.8,
+      rpm: 1450,
+      load: 68,
+      power: 34.2,
+      vibration: 2.1,
+      eff: 93.8,
+      oee: 92.4
+    };
+
+    function createTicksAndNumbers() {
+      if (!clock) return;
+      for (let i = 0; i < 60; i++) {
+        const tick = document.createElement('div');
+        tick.className = `tick ${i % 5 === 0 ? 'major' : 'minor'}`;
+        tick.style.transform = `translate(-50%, -50%) rotate(${i * 6}deg)`;
+        clock.appendChild(tick);
+      }
+      const numbers = [12,1,2,3,4,5,6,7,8,9,10,11];
+      const radius = () => window.innerWidth <= 760 ? 128 : 172;
+      numbers.forEach((num) => {
+        const el = document.createElement('div');
+        el.className = 'number';
+        el.dataset.num = num;
+        el.textContent = num;
+        clock.appendChild(el);
+      });
+      function place() {
+        const r = radius();
+        document.querySelectorAll('.number').forEach((el) => {
+          const num = Number(el.dataset.num);
+          const deg = num * 30;
+          const x = Math.sin(deg * Math.PI / 180) * r;
+          const y = -Math.cos(deg * Math.PI / 180) * r;
+          el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+        });
+      }
+      place();
+      window.addEventListener('resize', place);
+    }
+
+    function setGauge(needleEl, valueEl, value, min, max, unit = '') {
+      const numeric = Number(value);
+      const clamped = Math.max(min, Math.min(max, numeric));
+      const ratio = (clamped - min) / (max - min);
+      const deg = -120 + ratio * 240;
+      needleEl.style.transform = `translate(-50%, -100%) rotate(${deg}deg)`;
+      valueEl.textContent = `${value}${unit}`;
+    }
+
+    function setBar(el, value) {
+      el.style.width = `${Math.max(0, Math.min(100, value))}%`;
+    }
+
+    function pushHistory(key, value) {
+      history[key].push(value);
+      if (history[key].length > 30) history[key].shift();
+    }
+
+    function drawTrend(canvas, data, min, max) {
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(148,163,184,0.2)';
+      for (let i = 1; i < 4; i++) {
+        const y = (h / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      if (data.length < 2) return;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fbbf24';
+      ctx.beginPath();
+      data.forEach((v, i) => {
+        const x = (w / (data.length - 1)) * i;
+        const ratio = (v - min) / (max - min);
+        const y = h - ratio * (h - 12) - 6;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      const last = data[data.length - 1];
+      const ratio = (last - min) / (max - min);
+      const x = w - 1;
+      const y = h - ratio * (h - 12) - 6;
+      ctx.fillStyle = '#22d3ee';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function appendListItem(target, title, meta, limit = 6) {
+      const li = document.createElement('li');
+      li.className = target === eventList ? 'event-item' : 'log-item';
+      li.innerHTML = `<div class="${target === eventList ? 'event-title' : 'log-title'}">${title}</div><div class="${target === eventList ? 'event-meta' : 'log-meta'}">${meta}</div>`;
+      target.prepend(li);
+      while (target.children.length > limit) target.removeChild(target.lastChild);
+    }
+
+    function timestamp() {
+      return new Date().toLocaleString('zh-TW', { hour12: false });
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      modeValue.textContent = mode;
+      modeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+      appendListItem(eventList, `模式切換為 ${mode}`, `${timestamp()} · Operator command`);
+      if (mode === 'MAINT') {
+        lineValue.textContent = 'SERVICE';
+        lineValue.style.color = 'var(--yellow)';
+      } else {
+        lineValue.textContent = 'ONLINE';
+        lineValue.style.color = 'var(--green)';
+      }
+    }
+
+    function setAlarm(level, message, detail, key) {
+      redLight.classList.remove('active');
+      yellowLight.classList.remove('active');
+      greenLight.classList.remove('active');
+
+      if (level === 'critical') {
+        redLight.classList.add('active');
+        redState.textContent = 'ON';
+        yellowState.textContent = 'WAIT';
+        greenState.textContent = 'OFF';
+        alarmBadge.className = 'alarm-badge critical';
+        alarmBadge.textContent = state.acked ? 'CRITICAL ACK' : 'CRITICAL';
+        systemStatus.textContent = 'ALARM';
+        systemStatus.style.color = 'var(--red)';
+        processBadge.className = 'alarm-badge critical';
+        processBadge.textContent = 'UNSTABLE';
+        machineBadge.className = 'alarm-badge critical';
+        machineBadge.textContent = 'LIMIT';
+      } else if (level === 'warn') {
+        yellowLight.classList.add('active');
+        redState.textContent = 'OFF';
+        yellowState.textContent = 'ON';
+        greenState.textContent = 'STBY';
+        alarmBadge.className = 'alarm-badge warn';
+        alarmBadge.textContent = state.acked ? 'WARNING ACK' : 'WARNING';
+        systemStatus.textContent = 'WARNING';
+        systemStatus.style.color = 'var(--yellow)';
+        processBadge.className = 'alarm-badge warn';
+        processBadge.textContent = 'MONITOR';
+        machineBadge.className = 'alarm-badge warn';
+        machineBadge.textContent = 'WATCH';
+      } else {
+        greenLight.classList.add('active');
+        redState.textContent = 'OFF';
+        yellowState.textContent = 'MONITOR';
+        greenState.textContent = 'RUN';
+        alarmBadge.className = 'alarm-badge normal';
+        alarmBadge.textContent = 'NORMAL';
+        systemStatus.textContent = 'RUNNING';
+        systemStatus.style.color = 'var(--green)';
+        processBadge.className = 'alarm-badge normal';
+        processBadge.textContent = 'STABLE';
+        machineBadge.className = 'alarm-badge normal';
+        machineBadge.textContent = 'ACTIVE';
+      }
+
+      alarmMessage.textContent = message;
+      alarmDetail.textContent = detail;
+      state.alarmLevel = level;
+
+      if (level === 'normal') {
+        buzzer.classList.remove('active');
+        buzzerText.textContent = 'Alarm Buzzer Idle';
+        state.acked = false;
+        state.lastAlarmKey = '';
+      } else if (!state.acked) {
+        buzzer.classList.add('active');
+        buzzerText.textContent = 'Alarm Buzzer Active';
+      } else {
+        buzzer.classList.remove('active');
+        buzzerText.textContent = 'Alarm Acknowledged';
+      }
+
+      if (key && key !== state.lastAlarmKey) {
+        appendListItem(alarmLog, `${level.toUpperCase()} · ${message}`, `${timestamp()} · ${detail}`, 8);
+        state.lastAlarmKey = key;
+      }
+    }
+
+    function simulateProcess(nowMs) {
+      const t1 = Math.sin(nowMs / 90000);
+      const t2 = Math.cos(nowMs / 140000);
+      const t3 = Math.sin(nowMs / 70000 + 1.6);
+      const modeFactor = state.mode === 'AUTO' ? 1 : state.mode === 'MANUAL' ? 1.08 : 0.78;
+
+      state.temp = +(69 + (t1 + 1) * 10 * modeFactor).toFixed(1);
+      state.pressure = +(5.1 + (t2 + 1) * 0.95 * modeFactor).toFixed(1);
+      state.rpm = Math.round(1320 + (t3 + 1) * 320 * modeFactor);
+      state.load = Math.round(58 + (t1 + 1) * 15 * modeFactor);
+      state.power = +(28 + (t2 + 1) * 7 * modeFactor).toFixed(1);
+      state.vibration = +(1.2 + (Math.abs(t3) * 1.9 * modeFactor)).toFixed(1);
+      state.eff = +(95.6 - Math.abs(t2) * 2.4 * (state.mode === 'MAINT' ? 1.4 : 1)).toFixed(1);
+      state.oee = +(91.5 + Math.sin(nowMs / 180000) * 2.8).toFixed(1);
+    }
+
+    function updateClockAndPanels() {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const s = now.getSeconds();
+
+      hourHand.style.transform = `translate(-50%, -100%) rotate(${(h % 12) * 30 + m * 0.5}deg)`;
+      minuteHand.style.transform = `translate(-50%, -100%) rotate(${m * 6 + s * 0.1}deg)`;
+      secondHand.style.transform = `translate(-50%, -100%) rotate(${s * 6}deg)`;
+
+      const use24 = formatToggle.checked;
+      const showSeconds = secondToggle.checked;
+      digitalTime.textContent = now.toLocaleTimeString('zh-TW', {
+        hour12: !use24,
+        hour: '2-digit', minute: '2-digit', second: showSeconds ? '2-digit' : undefined
+      });
+      dateText.textContent = now.toLocaleDateString('zh-TW', {
+        year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long'
+      });
+      secondHand.style.display = showSeconds ? 'block' : 'none';
+      timeBadge.textContent = showSeconds ? 'SYNCED' : 'HOLD';
+
+      simulateProcess(now.getTime());
+
+      setGauge(tempNeedle, tempValue, state.temp, 40, 120, '°C');
+      setGauge(pressureNeedle, pressureValue, state.pressure, 0, 10, ' bar');
+      setGauge(rpmNeedle, rpmValue, state.rpm, 0, 3000, '');
+
+      loadValue.textContent = `${state.load}%`;
+      powerValue.textContent = `${state.power} kW`;
+      vibrationValue.textContent = `${state.vibration} mm/s`;
+      effValue.textContent = `${state.eff}%`;
+      oeeValue.textContent = `${state.oee}%`;
+      setBar(loadBar, state.load);
+      setBar(powerBar, Math.min(100, state.power * 2.2));
+      setBar(vibrationBar, Math.min(100, state.vibration * 20));
+      setBar(effBar, state.eff);
+
+      pushHistory('temp', state.temp);
+      pushHistory('pressure', state.pressure);
+      pushHistory('rpm', state.rpm);
+      drawTrend(chartRefs.temp, history.temp, 40, 120);
+      drawTrend(chartRefs.pressure, history.pressure, 0, 10);
+      drawTrend(chartRefs.rpm, history.rpm, 0, 3000);
+
+      if (state.temp >= 90 || state.pressure >= 7.2 || state.rpm >= 1980 || state.vibration >= 3.4) {
+        setAlarm('critical', 'CRITICAL LIMIT EXCEEDED', `Temp ${state.temp}°C / Pressure ${state.pressure} bar / RPM ${state.rpm} / Vib ${state.vibration} mm/s，建議立即檢查散熱、負載與軸承狀態。`, `C-${Math.floor(state.temp)}-${Math.floor(state.rpm)}`);
+      } else if (state.temp >= 82 || state.pressure >= 6.5 || state.rpm >= 1720 || state.vibration >= 2.8) {
+        setAlarm('warn', 'PROCESS OUT OF PREFERRED RANGE', `Temp ${state.temp}°C / Pressure ${state.pressure} bar / RPM ${state.rpm} / Vib ${state.vibration} mm/s，建議持續監看並準備降載。`, `W-${Math.floor(state.temp)}-${Math.floor(state.rpm)}`);
+      } else {
+        setAlarm('normal', 'SYSTEM NORMAL', `目前監測值穩定：Temp ${state.temp}°C / Pressure ${state.pressure} bar / RPM ${state.rpm} / Vib ${state.vibration} mm/s。`, 'N');
+      }
+
+      const hourShift = now.getHours();
+      shiftValue.textContent = hourShift < 8 ? 'N' : hourShift < 16 ? 'A' : 'B';
+      batchValue.textContent = `B-${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      operatorValue.textContent = state.mode === 'MAINT' ? 'SERVICE' : 'ZHOU';
+    }
+
+    ackBtn.addEventListener('click', () => {
+      if (state.alarmLevel === 'normal') return;
+      state.acked = true;
+      buzzer.classList.remove('active');
+      buzzerText.textContent = 'Alarm Acknowledged';
+      alarmDetail.textContent += '（ACK）';
+      appendListItem(eventList, 'Alarm ACK', `${timestamp()} · Operator acknowledged current alarm`);
+      setAlarm(state.alarmLevel, alarmMessage.textContent, alarmDetail.textContent, state.lastAlarmKey);
+    });
+
+    resetBtn.addEventListener('click', () => {
+      state.acked = false;
+      state.alarmLevel = 'normal';
+      state.lastAlarmKey = '';
+      appendListItem(eventList, 'Alarm RESET', `${timestamp()} · Operator reset alarm state`);
+      setAlarm('normal', 'SYSTEM NORMAL', 'Alarm reset 完成，系統回復監控狀態。', 'RESET');
+    });
+
+    modeButtons.forEach(btn => {
+      btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+
+    formatToggle.addEventListener('change', updateClockAndPanels);
+    secondToggle.addEventListener('change', updateClockAndPanels);
+
+    createTicksAndNumbers();
+    setMode('AUTO');
+    appendListItem(eventList, 'Dashboard Online', `${timestamp()} · Monitoring page initialized`);
+    appendListItem(eventList, 'PLC Link', `${timestamp()} · Simulated connection established`);
+    appendListItem(alarmLog, 'NORMAL · SYSTEM NORMAL', `${timestamp()} · Initial state`, 8);
+    updateClockAndPanels();
+    setInterval(updateClockAndPanels, 1000);
+  </script>
+</body>
+</html>
